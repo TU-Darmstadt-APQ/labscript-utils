@@ -60,7 +60,7 @@ class offset_frequency(UnitConversion):
 class double_pass_frequency(UnitConversion):
     base_unit = 'V'
     # Derived units are: double_pass frequency dp_MHz
-    derived_units = ['dp_MHz'] # Use later on 'd_MHz' for detuned MHz. Therefore the offset of the TA-Seed needs to be known.
+    derived_units = ['dp_MHz']  # Use later on 'd_MHz' for detuned MHz. Therefore the offset of the TA-Seed needs to be known.
 
     def __init__(self, calibration_parameters=None):
         self.parameters = calibration_parameters
@@ -77,8 +77,8 @@ class double_pass_frequency(UnitConversion):
         # self.interpolations['d_MHz_from_base'] = self.interpfunc(self.parameters['voltages'], detunings)
 
         # To Get the double pass frequencies, multiply the VCO-frequency by 2:
-        self.interpolations['dp_MHz_to_base'] = self.interpfunc(self.parameters['frequencies']*2, self.parameters['voltages'])
-        self.interpolations['dp_MHz_from_base'] = self.interpfunc(self.parameters['voltages'], self.parameters['frequencies']*2)
+        self.interpolations['dp_MHz_to_base'] = self.interpfunc([2 * i for i in self.parameters['frequencies']], self.parameters['voltages'])
+        self.interpolations['dp_MHz_from_base'] = self.interpfunc(self.parameters['voltages'], [2 * i for i in self.parameters['frequencies']])
 
         UnitConversion.__init__(self, self.parameters)
 
