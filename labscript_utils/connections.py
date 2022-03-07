@@ -40,6 +40,8 @@ class ConnectionTable(object):
         self.toplevel_children = {}
         self.table = {}
         self.master_pseudoclock = None
+        self.jump_device = None
+        self.jump_device_address = None
         self.raw_table = np.empty(0)
 
         try:
@@ -58,6 +60,8 @@ class ConnectionTable(object):
                 self.raw_table = dataset[:]
                 try:
                     self.master_pseudoclock = _ensure_str(dataset.attrs['master_pseudoclock'])
+                    self.jump_device = _ensure_str(dataset.attrs['jump_device'])
+                    self.jump_device_address = _ensure_str(dataset.attrs['jump_device_address'])
                 except KeyError:
                     pass
 
