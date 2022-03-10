@@ -319,6 +319,7 @@ class RunBaseClass(object):
             # State stuff
             if self.state == STATE_RUNNING:
                 if self.is_finished_callback():
+                    print("Send finished")
                     self.to_master_com.send(str.encode(f"fin {self.name}"))
                     self.state = STATE_FINISHED
 
