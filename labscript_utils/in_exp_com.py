@@ -139,7 +139,7 @@ class RunMasterClass(object):
                             self.device_state[dev] = STATE_READY
 
                 elif msg == "start":
-                    if self.state!= STATE_BUFFERED:
+                    if self.state != STATE_BUFFERED:
                         raise Exception("Must be buffered to start!")
                     print("Start")
                     self.from_master_com.send(b"start")
@@ -219,7 +219,7 @@ class RunBaseClass(object):
 
     def set_is_finished_callback(self, callback):
         self.is_finished_callback = callback
-        
+
     def set_start_callback(self, callback):
         self.start_callback = callback
 
@@ -297,7 +297,6 @@ class RunBaseClass(object):
                         raise Exception("Can only greed in manual state.")
                     self.to_master_com.send(str.encode(f"hello {self.name}"))
 
-
             while not self.command_queue.empty():
                 try:
                     # Queue still may be empty by pythons definition
@@ -322,4 +321,3 @@ class RunBaseClass(object):
                     print("Send finished")
                     self.to_master_com.send(str.encode(f"fin {self.name}"))
                     self.state = STATE_FINISHED
-
