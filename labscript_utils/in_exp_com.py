@@ -16,8 +16,10 @@ STATE_FINISHED = 'FINISHED'
 
 INIT_TIMEOUT = 1
 
-SLEEP_TIME_MANUAL = 1e-3
-SLEEP_TIME_EXPERIMENT = 1
+SLEEP_TIME_MANUAL = 1
+SLEEP_TIME_EXPERIMENT = 0.1
+
+MAINLOOP_SLEEP = 1e-3
 
 
 class RunMasterClass(object):
@@ -81,6 +83,8 @@ class RunMasterClass(object):
 
         while True:
 
+            time.sleep(MAINLOOP_SLEEP)
+
             # check & process new messages
             if self.state == STATE_MANUAL or self.state == STATE_INITIALIZING:
                 timeout = SLEEP_TIME_MANUAL
@@ -92,7 +96,7 @@ class RunMasterClass(object):
                 msg = self.to_master_com.recv()
                 events -= 1
 
-                print(f"recv: {msg}")
+                #print(f"recv: {msg}")
 
                 if msg == b"abort":
                     self.command_queue.put("abort")
@@ -264,7 +268,7 @@ class RunBaseClass(object):
                 msg = self.from_master_com.recv()
                 events -= 1
 
-                print(f"recv {self.name}: {msg}")
+                #print(f"recv {self.name}: {msg}")
 
                 if msg == b"abort":
                     self.command_queue.put("abort")
@@ -318,6 +322,5 @@ class RunBaseClass(object):
             # State stuff
             if self.state == STATE_RUNNING:
                 if self.is_finished_callback():
-                    print("Send finished")
                     self.to_master_com.send(str.encode(f"fin {self.name}"))
                     self.state = STATE_FINISHED
