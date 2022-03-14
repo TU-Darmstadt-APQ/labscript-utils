@@ -17,7 +17,7 @@ STATE_FINISHED = 'FINISHED'
 INIT_TIMEOUT = 1
 
 SLEEP_TIME_MANUAL = 1
-SLEEP_TIME_EXPERIMENT = 0.1
+SLEEP_TIME_EXPERIMENT = 1
 
 MAINLOOP_SLEEP = 1e-3
 
@@ -83,7 +83,7 @@ class RunMasterClass(object):
 
         while True:
 
-            time.sleep(MAINLOOP_SLEEP)
+            # time.sleep(MAINLOOP_SLEEP)
 
             # check & process new messages
             if self.state == STATE_MANUAL or self.state == STATE_INITIALIZING:
@@ -96,7 +96,7 @@ class RunMasterClass(object):
                 msg = self.to_master_com.recv()
                 events -= 1
 
-                #print(f"recv: {msg}")
+                print(f"recv: {msg}")
 
                 if msg == b"abort":
                     self.command_queue.put("abort")
@@ -146,6 +146,7 @@ class RunMasterClass(object):
                     if self.state != STATE_BUFFERED:
                         raise Exception("Must be buffered to start!")
                     print("Start")
+                    start_time = time.perf_counter()
                     self.from_master_com.send(b"start")
                     self.state = STATE_RUNNING
                     for dev in self.device_state:
@@ -166,9 +167,13 @@ class RunMasterClass(object):
 
                 if all_finished:
                     # Compute next section or exit
+                    print(f"Time to finish {time.perf_counter()-start_time}")
+                    start_time = time.perf_counter()
                     next_section = self.compute_next_section_callback()
+                    print(f"Next section time {time.perf_counter()-start_time}")
 
                     if next_section == -1:
+                        print("SEND exit")
                         self.from_master_com.send(b"exit")
                         self.state = STATE_MANUAL
                     else:
@@ -183,6 +188,7 @@ class RunMasterClass(object):
                         all_finished = False
                         break
                 if all_finished:
+                    print(f"Start shot, transition time {time.perf_counter() - start_time}")
                     self.from_master_com.send(b"start")
                     for dev in self.device_state:
                         self.device_state[dev] = STATE_RUNNING
@@ -287,7 +293,9 @@ class RunBaseClass(object):
                         raise Exception("Device not finished yet.")
                     next_section = int(msg.split(b' ')[1])
                     print(f"load next section {next_section}")
+                    start_time = time.perf_counter()
                     self.load_next_section_callback(next_section)
+                    print(f"load section took {time.perf_counter()-start_time}")
                     self.to_master_com.send(str.encode(f"rdy {self.name}"))
                     self.state = STATE_READY
 
@@ -298,7 +306,7 @@ class RunBaseClass(object):
 
                 elif msg == b"greet":
                     if self.state != STATE_MANUAL:
-                        raise Exception("Can only greed in manual state.")
+                        raise Exception("Can only greet in manual state.")
                     self.to_master_com.send(str.encode(f"hello {self.name}"))
 
             while not self.command_queue.empty():
