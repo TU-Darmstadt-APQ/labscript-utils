@@ -31,7 +31,12 @@ class RunMasterClass(object):
 
         def dummy_next_section_callback():
             return -1
+
+        def dummy_time_callback(x):
+            pass
         self.compute_next_section_callback = dummy_next_section_callback
+        self.transition_time_callback = dummy_time_callback
+        self.run_time_callback = dummy_time_callback
 
         self.context = zmq.Context()
 
@@ -48,6 +53,12 @@ class RunMasterClass(object):
         self.run_thread = None
 
         self.test_counter = 0
+
+    def set_transition_time_callback(self, callback):
+        self.transition_time_callback = callback
+
+    def set_run_time_callback(self, callback):
+        self.run_time_callback = callback
 
     def set_compute_next_section_callback(self, callback):
         self.compute_next_section_callback = callback
@@ -145,8 +156,12 @@ class RunMasterClass(object):
                 elif msg == "start":
                     if self.state != STATE_BUFFERED:
                         raise Exception("Must be buffered to start!")
+
+                    self.transition_time_callback(-1)
+
                     print("Start")
                     start_time = time.perf_counter()
+
                     self.from_master_com.send(b"start")
                     self.state = STATE_RUNNING
                     for dev in self.device_state:
@@ -167,11 +182,10 @@ class RunMasterClass(object):
 
                 if all_finished:
                     # Compute next section or exit
-                    print(f"Time to finish {time.perf_counter()-start_time}")
+                    self.run_time_callback(time.perf_counter() - start_time)
                     start_time = time.perf_counter()
-                    next_section = self.compute_next_section_callback()
-                    print(f"Next section time {time.perf_counter()-start_time}")
 
+                    next_section = self.compute_next_section_callback()
                     if next_section == -1:
                         print("SEND exit")
                         self.from_master_com.send(b"exit")
@@ -188,7 +202,10 @@ class RunMasterClass(object):
                         all_finished = False
                         break
                 if all_finished:
-                    print(f"Start shot, transition time {time.perf_counter() - start_time}")
+
+                    self.transition_time_callback(time.perf_counter() - start_time)
+                    start_time = time.perf_counter()
+
                     self.from_master_com.send(b"start")
                     for dev in self.device_state:
                         self.device_state[dev] = STATE_RUNNING
