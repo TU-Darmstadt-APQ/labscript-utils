@@ -120,10 +120,15 @@ class RunMasterClass(object):
                     self.device_state[device] = STATE_MANUAL
 
                 elif msg.startswith(b"fin"):
-                    if self.state != STATE_RUNNING:
+                    if self.state != STATE_RUNNING and self.state != STATE_MANUAL:
                         raise Exception("Can only finish devices when in running state")
-                    device = msg.split(b' ')[1]
-                    self.device_state[device] = STATE_FINISHED
+                    if self.state == STATE_MANUAL:
+                        print("SEND EXIT")
+                        # This is a bit hacky. We assume that the experiment runs without a jump master => send exit
+                        self.from_master_com.send(b'exit')
+                    else:
+                        device = msg.split(b' ')[1]
+                        self.device_state[device] = STATE_FINISHED
 
                 elif msg.startswith(b"rdy"):
                     if self.state != STATE_FINISHED:
@@ -256,6 +261,9 @@ class RunBaseClass(object):
     def send_buffered(self):
         self.command_queue.put("to_buffered")
 
+    def send_running(self):
+        self.command_queue.put("start")
+
     def abort(self):
         self.command_queue.put("abort")
 
@@ -317,8 +325,8 @@ class RunBaseClass(object):
                     self.state = STATE_READY
 
                 elif msg == b"exit":
-                    if self.state != STATE_FINISHED:
-                        raise Exception("Device not finished yet.")
+                    # if self.state != STATE_FINISHED and self.state != STATE_MANUAL:
+                    #     raise Exception("Device not finished yet.")
                     self.state = STATE_MANUAL
 
                 elif msg == b"greet":
@@ -339,6 +347,8 @@ class RunBaseClass(object):
                     return
                 elif msg == "abort":
                     self.state = STATE_MANUAL
+                elif msg == "start":
+                    self.state = STATE_RUNNING  # This is used when no jump device is present
                 elif msg == "to_buffered":
                     if not self.state == STATE_MANUAL:
                         raise Exception("Must be in manual mode to transition to buffered")
@@ -347,5 +357,6 @@ class RunBaseClass(object):
             # State stuff
             if self.state == STATE_RUNNING:
                 if self.is_finished_callback():
+                    print("SEND FINISHED")
                     self.to_master_com.send(str.encode(f"fin {self.name}"))
                     self.state = STATE_FINISHED
