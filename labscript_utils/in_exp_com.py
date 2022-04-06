@@ -4,8 +4,6 @@ import time
 import threading
 
 
-STATE_INITIALIZING = 'INIT'
-
 STATE_BUFFERED = 'BUFFERED'
 STATE_MANUAL = 'MANUAL'
 
@@ -88,16 +86,14 @@ class RunMasterClass(object):
     def mainloop(self):
 
         time.sleep(1)
-        print("start mainloop")
         self.from_master_com.send(b"greet")
-        print("sent greet me")
 
         while True:
 
             # time.sleep(MAINLOOP_SLEEP)
 
             # check & process new messages
-            if self.state == STATE_MANUAL or self.state == STATE_INITIALIZING:
+            if self.state == STATE_MANUAL:
                 timeout = SLEEP_TIME_MANUAL
             else:
                 timeout = SLEEP_TIME_EXPERIMENT
@@ -106,8 +102,6 @@ class RunMasterClass(object):
             while events != 0:
                 msg = self.to_master_com.recv()
                 events -= 1
-
-                print(f"recv: {msg}")
 
                 if msg == b"abort":
                     self.command_queue.put("abort")
@@ -123,7 +117,6 @@ class RunMasterClass(object):
                     if self.state != STATE_RUNNING and self.state != STATE_MANUAL:
                         raise Exception("Can only finish devices when in running state")
                     if self.state == STATE_MANUAL:
-                        print("SEND EXIT")
                         # This is a bit hacky. We assume that the experiment runs without a jump master => send exit
                         self.from_master_com.send(b'exit')
                     else:
@@ -146,12 +139,10 @@ class RunMasterClass(object):
                     break
 
                 if msg == "shutdown":
-                    print("Shutting down")
                     self.from_master_com.send(b"shutdown")
                     return
 
                 elif msg == "to_buffered":
-                    print("To buffered")
                     self.test_counter = 0
                     if self.state == STATE_MANUAL:
                         self.state = STATE_BUFFERED
@@ -164,7 +155,6 @@ class RunMasterClass(object):
 
                     self.transition_time_callback(-1)
 
-                    print("Start")
                     start_time = time.perf_counter()
 
                     self.from_master_com.send(b"start")
@@ -192,7 +182,6 @@ class RunMasterClass(object):
 
                     next_section = self.compute_next_section_callback()
                     if next_section == -1:
-                        print("SEND exit")
                         self.from_master_com.send(b"exit")
                         self.state = STATE_MANUAL
                     else:
@@ -284,12 +273,11 @@ class RunBaseClass(object):
 
         self.to_master_com.send(str.encode(f"hello {self.name}"))
         self.state = STATE_MANUAL
-        print("Enter mainloop")
 
         while True:
 
             # check & process new messages
-            if self.state == STATE_MANUAL or self.state == STATE_INITIALIZING:
+            if self.state == STATE_MANUAL:
                 timeout = SLEEP_TIME_MANUAL
             else:
                 timeout = SLEEP_TIME_EXPERIMENT
@@ -298,8 +286,6 @@ class RunBaseClass(object):
             while events != 0:
                 msg = self.from_master_com.recv()
                 events -= 1
-
-                #print(f"recv {self.name}: {msg}")
 
                 if msg == b"abort":
                     self.command_queue.put("abort")
@@ -317,16 +303,16 @@ class RunBaseClass(object):
                     if self.state != STATE_FINISHED:
                         raise Exception("Device not finished yet.")
                     next_section = int(msg.split(b' ')[1])
-                    print(f"load next section {next_section}")
+
                     start_time = time.perf_counter()
                     self.load_next_section_callback(next_section)
-                    print(f"load section took {time.perf_counter()-start_time}")
+
                     self.to_master_com.send(str.encode(f"rdy {self.name}"))
                     self.state = STATE_READY
 
                 elif msg == b"exit":
-                    # if self.state != STATE_FINISHED and self.state != STATE_MANUAL:
-                    #     raise Exception("Device not finished yet.")
+                    if self.state != STATE_FINISHED and self.state != STATE_MANUAL:
+                        raise Exception("Device not finished yet.")
                     self.state = STATE_MANUAL
 
                 elif msg == b"greet":
@@ -343,7 +329,6 @@ class RunBaseClass(object):
                     break
 
                 if msg == "shutdown":
-                    print("Shutting down")
                     return
                 elif msg == "abort":
                     self.state = STATE_MANUAL
@@ -357,6 +342,5 @@ class RunBaseClass(object):
             # State stuff
             if self.state == STATE_RUNNING:
                 if self.is_finished_callback():
-                    print("SEND FINISHED")
                     self.to_master_com.send(str.encode(f"fin {self.name}"))
                     self.state = STATE_FINISHED
