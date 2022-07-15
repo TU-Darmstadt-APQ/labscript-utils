@@ -283,8 +283,11 @@ class RunBaseClass(object):
                 timeout = SLEEP_TIME_EXPERIMENT
 
             events = self.from_master_com.poll(timeout=timeout, flags=zmq.POLLIN)
+
             while events != 0:
+                print('event received: ', events)
                 msg = self.from_master_com.recv()
+                print('msg received:', msg)
                 events -= 1
 
                 if msg == b"abort":
@@ -319,6 +322,8 @@ class RunBaseClass(object):
                     if self.state != STATE_MANUAL:
                         raise Exception("Can only greet in manual state.")
                     self.to_master_com.send(str.encode(f"hello {self.name}"))
+
+                print('State is: ', self.state)
 
             while not self.command_queue.empty():
                 try:
