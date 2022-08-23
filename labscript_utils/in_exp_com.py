@@ -82,6 +82,8 @@ class RunMasterClass(object):
     def start(self):
         self.run_thread = threading.Thread(target=self.mainloop)
         self.run_thread.start()
+        # Wait 5 seconds for all devices to connect
+        time.sleep(5)
 
     def mainloop(self):
 
@@ -112,6 +114,7 @@ class RunMasterClass(object):
                     device = msg.split(b' ')[1]
                     print(f"Register {device}")
                     self.device_state[device] = STATE_MANUAL
+                    self.from_master_com.send(msg)  # greet back
 
                 elif msg.startswith(b"fin"):
                     if self.state != STATE_RUNNING and self.state != STATE_MANUAL:
@@ -266,13 +269,27 @@ class RunBaseClass(object):
         self.context.term()
 
     def start(self):
-        self.run_thread = threading.Thread(target=self.mainloop)
-        self.run_thread.start()
-
-    def mainloop(self):
 
         self.to_master_com.send(str.encode(f"hello {self.name}"))
         self.state = STATE_MANUAL
+
+        lastGreeting = time.time()
+
+        while True:
+            events = self.from_master_com.poll(timeout=1, flags=zmq.POLLIN)
+            while events != 0:
+                print('event received: ', events)
+                msg = self.from_master_com.recv()
+                if msg == str.encode(f"hello {self.name}"):
+                    self.run_thread = threading.Thread(target=self.mainloop)
+                    self.run_thread.start()
+                    return
+            # check for some timeout
+            if lastGreeting < time.time() - 2:
+                # resend
+                self.to_master_com.send(str.encode(f"hello {self.name}"))
+
+    def mainloop(self):
 
         while True:
 
