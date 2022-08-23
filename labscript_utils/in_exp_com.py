@@ -278,7 +278,7 @@ class RunBaseClass(object):
         while True:
             events = self.from_master_com.poll(timeout=1, flags=zmq.POLLIN)
             while events != 0:
-                print('event received: ', events)
+                # print('event received: ', events)
                 msg = self.from_master_com.recv()
                 if msg == str.encode(f"hello {self.name}"):
                     self.run_thread = threading.Thread(target=self.mainloop)
@@ -302,9 +302,9 @@ class RunBaseClass(object):
             events = self.from_master_com.poll(timeout=timeout, flags=zmq.POLLIN)
 
             while events != 0:
-                print('event received: ', events)
+                # print('event received: ', events)
                 msg = self.from_master_com.recv()
-                print('msg received:', msg)
+                # print('msg received:', msg)
                 events -= 1
 
                 if msg == b"abort":
@@ -340,7 +340,7 @@ class RunBaseClass(object):
                         raise Exception("Can only greet in manual state.")
                     self.to_master_com.send(str.encode(f"hello {self.name}"))
 
-                print('State is: ', self.state)
+                # print('State is: ', self.state)
 
             while not self.command_queue.empty():
                 try:
