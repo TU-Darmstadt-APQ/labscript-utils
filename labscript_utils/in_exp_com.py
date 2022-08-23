@@ -19,6 +19,8 @@ SLEEP_TIME_EXPERIMENT = 1
 
 MAINLOOP_SLEEP = 1e-3
 
+TIMEOUT_AFTER_MASTER_FINISH = 2
+
 
 class RunMasterClass(object):
 
@@ -51,6 +53,7 @@ class RunMasterClass(object):
         self.run_thread = None
 
         self.test_counter = 0
+        self.master_finished_time = None
 
     def set_transition_time_callback(self, callback):
         self.transition_time_callback = callback
@@ -132,6 +135,9 @@ class RunMasterClass(object):
                     device = msg.split(b' ')[1]
                     self.device_state[device] = STATE_READY
 
+                elif msg.startswith(b"master_finished"):
+                    self.master_finished_time = time.time()
+
             # Process command queue
             while not self.command_queue.empty():
                 try:
@@ -161,6 +167,7 @@ class RunMasterClass(object):
                     start_time = time.perf_counter()
 
                     self.from_master_com.send(b"start")
+                    self.master_finished_time = None
                     self.state = STATE_RUNNING
                     for dev in self.device_state:
                         self.device_state[dev] = STATE_RUNNING
@@ -191,6 +198,11 @@ class RunMasterClass(object):
                         self.from_master_com.send(str.encode(f"load {next_section}"))
                         self.state = STATE_FINISHED
 
+                elif self.master_finished_time is not None and self.master_finished_time < time.time() - TIMEOUT_AFTER_MASTER_FINISH:
+                    # Devices did not finish for some reason. ABORT!
+                    print(f"Some devices did not finish. Abort!")
+                    self.abort()
+
             elif self.state == STATE_FINISHED:
                 # Check whether devices are ready again
                 all_finished = True
@@ -206,6 +218,7 @@ class RunMasterClass(object):
                     self.from_master_com.send(b"start")
                     for dev in self.device_state:
                         self.device_state[dev] = STATE_RUNNING
+                    self.master_finished_time = None
                     self.state = STATE_RUNNING
 
 
@@ -258,6 +271,9 @@ class RunBaseClass(object):
 
     def abort(self):
         self.command_queue.put("abort")
+
+    def send_master_finished(self):
+        self.to_master_com.send(b"master_finished")
 
     def shutdown(self):
         self.command_queue.put("shutdown")
