@@ -198,7 +198,7 @@ class RunMasterClass(object):
                         self.from_master_com.send(str.encode(f"load {next_section}"))
                         self.state = STATE_FINISHED
 
-                elif self.master_finished_time is not None and self.master_finished_time < time.time() - TIMEOUT_AFTER_MASTER_FINISH:
+                elif (self.master_finished_time is not None) and (self.master_finished_time < (time.time() - TIMEOUT_AFTER_MASTER_FINISH)):
                     # Devices did not finish for some reason. ABORT!
                     print(f"Some devices did not finish. Abort!")
                     self.abort()
@@ -224,10 +224,11 @@ class RunMasterClass(object):
 
 class RunBaseClass(object):
 
-    def __init__(self, name, master_ip, to_master_port='43227', from_master_port='43228'):
+    def __init__(self, name, master_ip, clock=False, to_master_port='43227', from_master_port='43228'):
         self.state = STATE_MANUAL
         self.command_queue = queue.SimpleQueue()
         self.name = name
+        self.clock = clock
 
         def dummy_callback_1():
             return True
@@ -271,9 +272,6 @@ class RunBaseClass(object):
 
     def abort(self):
         self.command_queue.put("abort")
-
-    def send_master_finished(self):
-        self.to_master_com.send(b"master_finished")
 
     def shutdown(self):
         self.command_queue.put("shutdown")
@@ -382,3 +380,6 @@ class RunBaseClass(object):
                 if self.is_finished_callback():
                     self.to_master_com.send(str.encode(f"fin {self.name}"))
                     self.state = STATE_FINISHED
+
+                    if self.clock:
+                        self.to_master_com.send(b"master_finished")
