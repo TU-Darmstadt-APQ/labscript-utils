@@ -4,6 +4,7 @@ import time
 import threading
 
 
+STATE_UNCONNECTED = 'UNCONNECTED'
 STATE_BUFFERED = 'BUFFERED'
 STATE_MANUAL = 'MANUAL'
 
@@ -293,11 +294,19 @@ class RunBaseClass(object):
         self.from_master_com.close()
         self.context.term()
 
-    def start(self):
+    def start(self, asyncGreeting=False):
 
+        if asyncGreeting:
+            self.state = STATE_UNCONNECTED
+            self.run_thread = threading.Thread(target=self.mainloop)
+            self.run_thread.start()
+        else:
+            self.greet()
+            self.run_thread = threading.Thread(target=self.mainloop)
+            self.run_thread.start()
+
+    def greet(self):
         self.to_master_com.send(str.encode(f"hello {self.name}"))
-        self.state = STATE_MANUAL
-
         lastGreeting = time.time()
 
         while True:
@@ -306,8 +315,7 @@ class RunBaseClass(object):
                 # print('event received: ', events)
                 msg = self.from_master_com.recv()
                 if msg == str.encode(f"hello {self.name}"):
-                    self.run_thread = threading.Thread(target=self.mainloop)
-                    self.run_thread.start()
+                    self.state = STATE_MANUAL
                     return
             # check for some timeout
             if lastGreeting < time.time() - 2:
@@ -315,6 +323,9 @@ class RunBaseClass(object):
                 self.to_master_com.send(str.encode(f"hello {self.name}"))
 
     def mainloop(self):
+
+        if self.state == STATE_UNCONNECTED:
+            self.greet()
 
         while True:
 
