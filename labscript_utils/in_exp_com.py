@@ -19,7 +19,7 @@ SLEEP_TIME_EXPERIMENT = 1
 
 MAINLOOP_SLEEP = 1e-3
 
-TIMEOUT_AFTER_MASTER_FINISH = 2
+TIMEOUT_AFTER_MASTER_FINISH = 0.2
 
 
 class RunMasterClass(object):
@@ -201,7 +201,8 @@ class RunMasterClass(object):
                 elif (self.master_finished_time is not None) and (self.master_finished_time < (time.time() - TIMEOUT_AFTER_MASTER_FINISH)):
                     # Devices did not finish for some reason. ABORT!
                     print(f"Some devices did not finish. Abort!")
-                    self.abort()
+                    self.from_master_com.send(b"exit")  # Just send the exit signal and let blacs handle the device timeout
+                    self.state = STATE_MANUAL
 
             elif self.state == STATE_FINISHED:
                 # Check whether devices are ready again
@@ -253,6 +254,8 @@ class RunBaseClass(object):
         self.to_master_com.connect(f"tcp://{master_ip}:{to_master_port}")
         self.from_master_com.connect(f"tcp://{master_ip}:{from_master_port}")
 
+        self.current_exception = None
+
         self.run_thread = None
 
     def set_is_finished_callback(self, callback):
@@ -265,6 +268,7 @@ class RunBaseClass(object):
         self.load_next_section_callback = callback
 
     def send_buffered(self):
+        self.check_err()
         self.command_queue.put("to_buffered")
 
     def send_running(self):
@@ -272,6 +276,13 @@ class RunBaseClass(object):
 
     def abort(self):
         self.command_queue.put("abort")
+
+    def check_err(self):
+        if self.current_exception is not None:
+            # Copy, clear and raise exception. Maybe it can be caught in which case we want to be in a non-error state.
+            err = self.current_exception
+            self.current_exception = None
+            raise err
 
     def shutdown(self):
         self.command_queue.put("shutdown")
@@ -329,13 +340,13 @@ class RunBaseClass(object):
 
                 elif msg == b"start":
                     if self.state != STATE_READY:
-                        raise Exception("Device not ready for start.")
+                        self.current_exception = RuntimeError("Device not ready for start.")
                     self.state = STATE_RUNNING
                     self.start_callback()
 
                 elif msg.startswith(b"load"):
                     if self.state != STATE_FINISHED:
-                        raise Exception("Device not finished yet.")
+                        self.current_exception = RuntimeError("Device not finished yet.")
                     next_section = int(msg.split(b' ')[1])
 
                     start_time = time.perf_counter()
@@ -346,12 +357,12 @@ class RunBaseClass(object):
 
                 elif msg == b"exit":
                     if self.state != STATE_FINISHED and self.state != STATE_MANUAL:
-                        raise Exception("Device not finished yet.")
+                        self.current_exception = RuntimeError(f"Device {self.name} not finished yet.")
                     self.state = STATE_MANUAL
 
                 elif msg == b"greet":
                     if self.state != STATE_MANUAL:
-                        raise Exception("Can only greet in manual state.")
+                        self.current_exception = RuntimeError("Can only greet in manual state.")
                     self.to_master_com.send(str.encode(f"hello {self.name}"))
 
                 # print('State is: ', self.state)
@@ -372,7 +383,7 @@ class RunBaseClass(object):
                     self.state = STATE_RUNNING  # This is used when no jump device is present
                 elif msg == "to_buffered":
                     if not self.state == STATE_MANUAL:
-                        raise Exception("Must be in manual mode to transition to buffered")
+                        self.current_exception = RuntimeError("Must be in manual mode to transition to buffered")
                     self.state = STATE_READY
 
             # State stuff
