@@ -113,8 +113,6 @@ class RunMasterClass(object):
                     self.command_queue.put("abort")
 
                 elif msg.startswith(b"hello"):
-                    if self.state != STATE_MANUAL:
-                        raise Exception(b"Can only add devices when in manual mode")
                     device = msg.split(b' ')[1]
                     print(f"Register {device}")
                     self.device_state[device] = STATE_MANUAL
