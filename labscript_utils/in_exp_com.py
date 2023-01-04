@@ -20,7 +20,7 @@ SLEEP_TIME_EXPERIMENT = 1
 
 MAINLOOP_SLEEP = 1e-3
 
-TIMEOUT_AFTER_MASTER_FINISH = 10
+TIMEOUT_AFTER_MASTER_FINISH = 200
 
 
 class RunMasterClass(object):
@@ -320,6 +320,15 @@ class RunBaseClass(object):
                 # resend
                 self.to_master_com.send(str.encode(f"hello {self.name}"))
 
+    def check_state(self):
+        if self.state == STATE_RUNNING:
+            if self.is_finished_callback():
+                self.to_master_com.send(str.encode(f"fin {self.name}"))
+                self.state = STATE_FINISHED
+
+                if self.clock:
+                    self.to_master_com.send(b"master_finished")
+
     def mainloop(self):
 
         if self.state == STATE_UNCONNECTED:
@@ -354,6 +363,7 @@ class RunBaseClass(object):
                     self.start_callback()
 
                 elif msg.startswith(b"load"):
+                    self.check_state()
                     if self.state != STATE_FINISHED:
                         self.current_exception = RuntimeError("Device not finished yet.")
                     next_section = int(msg.split(b' ')[1])
@@ -365,6 +375,8 @@ class RunBaseClass(object):
                     self.state = STATE_READY
 
                 elif msg == b"exit":
+                    self.check_state()
+                    print(self.state)
                     if self.state != STATE_FINISHED and self.state != STATE_MANUAL:
                         self.current_exception = RuntimeError(f"Device {self.name} not finished yet.")
                     self.state = STATE_MANUAL
@@ -396,10 +408,4 @@ class RunBaseClass(object):
                     self.state = STATE_READY
 
             # State stuff
-            if self.state == STATE_RUNNING:
-                if self.is_finished_callback():
-                    self.to_master_com.send(str.encode(f"fin {self.name}"))
-                    self.state = STATE_FINISHED
-
-                    if self.clock:
-                        self.to_master_com.send(b"master_finished")
+            self.check_state()
