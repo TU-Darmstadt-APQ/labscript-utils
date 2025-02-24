@@ -319,7 +319,7 @@ def connect_to_zlock_server():
         try:
             # short connection timeout if localhost, don't want to
             # waste time:
-            client.ping(timeout=0.05)
+            client.ping(timeout=0.5)#(timeout=0.05)
         except zmq.ZMQError:
             # No zlock server running on localhost. Start one. It will run forever, even
             # after this program exits. This is important for other programs which might
@@ -329,7 +329,7 @@ def connect_to_zlock_server():
                 [sys.executable, '-m', 'labscript_utils.zlock', '--daemon']
             )
             # Try again. Longer timeout this time, give it time to start up:
-            client.ping(timeout=15)
+            client.ping(timeout=30)#15
     else:
         client.ping()
 
@@ -360,7 +360,7 @@ def ensure_connected_to_zlog():
         try:
             # short connection timeout if localhost, don't want to
             # waste time:
-            client.ping(timeout=0.05)
+            client.ping(timeout=0.5)#(timeout=0.05)
         except zmq.ZMQError:
             # No zlog server running on localhost. Start one. It will run forever, even
             # after this program exits. This is important for other programs which might
@@ -370,7 +370,7 @@ def ensure_connected_to_zlog():
                 [sys.executable, '-m', 'labscript_utils.zlog', '--daemon']
             )
             # Try again. Longer timeout this time, give it time to start up:
-            client.ping(timeout=15)
+            client.ping(timeout=30)#15
     else:
         client.ping()
     _connected_to_zlog = True
